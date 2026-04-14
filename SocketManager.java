@@ -38,7 +38,11 @@ public class SocketManager {
         public Server(int port) throws IOException {
             ss = new ServerSocket(port);
             
+            System.out.println("server started");
+
             s = ss.accept();
+
+            System.out.println("client connected");
 
             in = new DataInputStream(
                 new BufferedInputStream(s.getInputStream()));

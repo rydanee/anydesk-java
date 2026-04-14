@@ -1,8 +1,20 @@
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Button;
+import java.awt.Color;
+import java.awt.Frame;
+import java.awt.Image;
+import java.awt.Label;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
+
+import javax.imageio.ImageIO;
 
 public class Window{
     SocketManager sm = new SocketManager();
+    public boolean isConnected = false;
 
     public void menuWindow(Frame frame){
         frame.removeAll();
@@ -37,6 +49,27 @@ public class Window{
 
         frame.revalidate();
         frame.repaint();
+    }
+
+    public void hostedWindow(BufferedImage img) {
+        Frame fr = new Frame();
+        fr.setBackground(Color.BLACK);
+        fr.setSize(500, 500);
+        fr.setLayout(null);
+        fr.setVisible(true);
+
+        new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                while (isConnected) { 
+                    
+                }
+            }
+
+        }).start();
+
+        System.out.println();
     }
 
     public void hostWindow(Frame frame){
@@ -148,5 +181,9 @@ public class Window{
         });
 
         menuWindow(frame);
+    }
+
+    public void setIsConnected(boolean isConnected) {
+        this.isConnected = isConnected;
     }
 }
