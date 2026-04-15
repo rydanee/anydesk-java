@@ -104,7 +104,7 @@ public class SocketManager {
                             } else img = takeScreenshot();
                             
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            ImageIO.write(img, "PNG", baos);
+                            ImageIO.write(img, "JPG", baos);
                             byte[] bytes = baos.toByteArray();
 
                             out.writeInt(bytes.length); 
