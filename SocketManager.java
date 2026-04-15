@@ -15,6 +15,9 @@ import javax.imageio.ImageIO;
 
 public class SocketManager {
 
+    Robot robot;
+    Rectangle screenRect;
+
     public Server initServer(int port) {
             Server serv = null;
             try {
@@ -27,6 +30,29 @@ public class SocketManager {
     public Client initClient(String ip, int port) {
         Client cl = new Client(ip, port);
         return cl;
+    }
+
+    public static boolean isWayland() {
+        String sessionType = System.getenv("XDG_SESSION_TYPE");
+        return "wayland".equalsIgnoreCase(sessionType);
+    }
+
+    BufferedImage takeScreenshotGrim() {
+        try {
+            Process process = new ProcessBuilder("grim", "-").start();
+            InputStream is = process.getInputStream();
+            BufferedImage image = ImageIO.read(is);
+            process.waitFor();
+            return image;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    BufferedImage takeScreenshot() {
+        BufferedImage img = robot.createScreenCapture(screenRect);
+
+        return img;
     }
 
     public class Server {
@@ -54,9 +80,11 @@ public class SocketManager {
                 public void run() {
                     while (s.isConnected()) {
                         try {
-                            BufferedImage img = ImageIO.read(s.getInputStream());
-                            ImageIO.write(img, "PNG", new File("received.png"));
-                            System.out.println(img.getHeight());
+                            BufferedImage img = null;
+                            if (isWayland()) {
+                                img = takeScreenshotGrim();
+                            } else img = takeScreenshot();
+                            ImageIO.write(img, "PNG", s.getOutputStream());
                         } catch (IOException e) {
                         }
                     }
@@ -80,31 +108,6 @@ public class SocketManager {
         public boolean stop = false;
         DataInputStream in;
         DataOutputStream out;
-        Robot robot;
-        Rectangle screenRect;
-
-        public static boolean isWayland() {
-            String sessionType = System.getenv("XDG_SESSION_TYPE");
-            return "wayland".equalsIgnoreCase(sessionType);
-        }
-
-        BufferedImage takeScreenshotGrim() {
-            try {
-                Process process = new ProcessBuilder("grim", "-").start();
-                InputStream is = process.getInputStream();
-                BufferedImage image = ImageIO.read(is);
-                process.waitFor();
-                return image;
-            } catch (Exception e) {
-                return null;
-            }
-        }
-
-        BufferedImage takeScreenshot() {
-            BufferedImage img = robot.createScreenCapture(screenRect);
-
-            return img;
-        }
 
         public Client(String ip, int port) {    
             screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
@@ -129,12 +132,9 @@ public class SocketManager {
                 public void run() {
                     while (cs.isConnected()) {
                         try {
-                            BufferedImage img = null;
-                            if (isWayland()) {
-                                img = takeScreenshotGrim();
-                            } else img = takeScreenshot();
-                            ImageIO.write(img, "PNG", cs.getOutputStream());
-
+                            BufferedImage img = ImageIO.read(cs.getInputStream());
+                            ImageIO.write(img, "PNG", new File("received.png"));
+                            System.out.println(img.getHeight());
                         } catch (IOException e) {
                         }
                     }
