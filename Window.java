@@ -54,7 +54,7 @@ public class Window{
     }
 
     public void updateImg(BufferedImage img) {
-
+        
     }
 
     public void hostedWindow(BufferedImage img) {
