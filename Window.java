@@ -24,7 +24,6 @@ public class Window{
     SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
     JFrame hostedFrame;
-    Frame hostedFrame;
     public Robot robot;
 
     Image img = null;
