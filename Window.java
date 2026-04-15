@@ -105,14 +105,14 @@ public class Window{
         TextField portField = new TextField("9021");
         TextField ipField = new TextField("127.0.0.1");
 
-        Button createButton = new Button("Create");
+        Button createButton = new Button("Connect");
         Button backButton = new Button("Back");    
 
         Label ipLabel = new Label("IP:");
         Label portLabel = new Label("Port:");
 
         ipLabel.setLocation(50, 150);
-        ipLabel.setForeground(Color.WHITE);
+        ipLabel.setBackground(Color.WHITE);
 
         portLabel.setLocation(50, 100);
         portLabel.setForeground(Color.WHITE);
