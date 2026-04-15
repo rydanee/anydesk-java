@@ -14,11 +14,12 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 
 import javax.imageio.ImageIO;
+import javax.swing.JFrame;
 
 public class Window{
     SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
-    Frame hostedFrame;
+    JFrame hostedFrame;
 
     Image img = null;
 
@@ -59,11 +60,11 @@ public class Window{
 
     public void updateImg(BufferedImage img) {
         this.img = img;
-        hostedFrame.repaint();
+        if( hostedFrame != null) hostedFrame.repaint();
     }
 
     public void hostedWindow() {
-        hostedFrame = new Frame("Photo") {
+        hostedFrame = new JFrame("Photo") {
             @Override
             public void paint(Graphics g){
                 if (img == null) {System.out.println("whaa"); return;}
@@ -150,15 +151,24 @@ public class Window{
         backButton.setBounds(150, 200, 100, 30);
 
         createButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e){
-
-                int port = Integer.parseInt(portField.getText());
-                SocketManager.Client serv = sm.initClient(ipField.getText(), port);
-                if (isConnected){
-                    hostedWindow();
+    public void actionPerformed(ActionEvent e){
+        int port = Integer.parseInt(portField.getText());
+        sm.initClient(ipField.getText(), port);
+        
+        new Thread(() -> {
+            try {
+                for(int i=0; i<50; i++) {
+                    if (isConnected) {
+                        hostedWindow();
+                        break;
+                    }
+                    Thread.sleep(100);
                 }
-            }
-        });
+            } catch (Exception ex) {}
+        }).start();
+    }
+});
+
         
         backButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
