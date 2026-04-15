@@ -1,3 +1,4 @@
+import java.awt.AWTException;
 import java.awt.Button;
 import java.awt.Color;
 import java.awt.Frame;
@@ -5,21 +6,26 @@ import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Label;
 import java.awt.MediaTracker;
+import java.awt.Robot;
 import java.awt.TextField;
 import java.awt.Toolkit;
+import java.awt.event.KeyListener;
+import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
+import java.awt.Robot;
 
 public class Window{
     SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
     JFrame hostedFrame;
+    Frame hostedFrame;
+    public Robot robot;
 
     Image img = null;
 
@@ -71,6 +77,20 @@ public class Window{
                 g.drawImage(img, 0, 0, this);
             }
         };
+
+        if (hostedFrame.isFocusableWindow()){
+            hostedFrame.addKeyListener(new KeyListener() {
+                public void keyPressed(KeyEvent e) {
+                    System.out.println("Нажата клавиша: " + KeyEvent.getKeyText(e.getKeyCode()));
+                }
+
+                public void keyReleased(KeyEvent e) {
+                }
+
+                public void keyTyped(KeyEvent e) {
+                }
+            });
+        }
 
         hostedFrame.setSize(1920, 1200);
         hostedFrame.setVisible(true);
@@ -189,6 +209,9 @@ public class Window{
     
     public void initWindow(){
         Frame frame = new Frame("Main window");
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {}
 
         frame.setBackground(Color.BLACK);
         frame.setSize(500, 500);
