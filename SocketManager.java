@@ -6,15 +6,24 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Iterator;
 import java.awt.AWTException;
+import java.awt.Graphics;
+import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.File;
+
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 
 public class SocketManager {
 
@@ -53,20 +62,56 @@ public class SocketManager {
     BufferedImage takeScreenshotGrim() {
         try {
             Process process = new ProcessBuilder("grim", "-").start();
-            InputStream is = process.getInputStream();
-            BufferedImage image = ImageIO.read(is);
+            byte[] imageBytes = process.getInputStream().readAllBytes();
             process.waitFor();
-            return image;
+            if (imageBytes.length == 0) return null;
+
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (img == null) return null;
+
+            BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_RGB);
+
+            Graphics g = scaledImg.getGraphics();
+            g.drawImage(img, 0, 0, 1280, 720, null);
+            g.dispose(); 
+
+            return scaledImg;
         } catch (Exception e) {
             return null;
         }
     }
 
-    BufferedImage takeScreenshot() {
-        BufferedImage img = robot.createScreenCapture(screenRect);
 
-        return img;
+    private void writeJpgOptimized(BufferedImage img, OutputStream out) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        ImageWriter writer = writers.next();
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality(0.6f);
+        
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(img, null, null), param);
+            ios.flush();
+        }
+        writer.dispose();
+        
     }
+
+
+    BufferedImage takeScreenshot() {
+        BufferedImage fullImg = robot.createScreenCapture(screenRect);
+
+        BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_RGB);
+
+        Graphics g = scaledImg.getGraphics();
+        g.drawImage(fullImg, 0, 0, 1280, 720, null);
+        g.dispose(); 
+
+        return scaledImg;
+    }
+
 
     public class Server {
         public int port = 9021;
@@ -103,15 +148,20 @@ public class SocketManager {
                                 img = takeScreenshotGrim();
                             } else img = takeScreenshot();
                             
+                            if (img == null) continue;
+
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            ImageIO.write(img, "JPG", baos);
+                            writeJpgOptimized(img, baos);
+
                             byte[] bytes = baos.toByteArray();
 
                             out.writeInt(bytes.length); 
 
                             out.write(bytes);
                             out.flush();
-                        } catch (IOException e) {
+
+                            Thread.sleep(30);
+                        } catch (Exception e) {
                         }
                     }
                     try {
@@ -160,13 +210,15 @@ public class SocketManager {
                                 byte[] data = new byte[length];
                                 in.readFully(data);
 
-
-
                                 BufferedImage img = ImageIO.read(new ByteArrayInputStream(data));
-                                win.updateImg(img);
+                                if(img != null) {
+                                    img.getGraphics().dispose(); 
+                                    win.updateImg(img);
+                                    win.setIsConnected(true);
+                                }
                             }
-
-                        } catch (IOException e) {
+                            //Thread.sleep(30);
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
