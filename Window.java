@@ -1,8 +1,10 @@
 import java.awt.Button;
 import java.awt.Color;
 import java.awt.Frame;
+import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Label;
+import java.awt.MediaTracker;
 import java.awt.TextField;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -58,11 +60,23 @@ public class Window{
         
     }
 
-    public void hostedWindow(Frame frame) {
-        frame.removeAll();
+    public void hostedWindow() {
+        Frame frame = new Frame("Photo") {
+            @Override
+            public void paint(Graphics g){
+                //if (img == null) return;
+                //g.drawImage(img, 50, 50, this);
+            }
+        };
 
-        img = Toolkit.getDefaultToolkit().getImage("received.png");
-        
+        frame.setBackground(Color.BLACK);
+        frame.setSize(3072, 1920);
+        frame.setVisible(true);
+
+        frame.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) { System.exit(0); }
+        });
+
     }
 
     public void hostWindow(Frame frame){
@@ -86,6 +100,7 @@ public class Window{
             public void actionPerformed(ActionEvent e){
                 int port = Integer.parseInt(hostField.getText());
                 SocketManager.Server serv = sm.initServer(port);
+
             }
         });
 
@@ -138,6 +153,9 @@ public class Window{
 
                 int port = Integer.parseInt(portField.getText());
                 SocketManager.Client serv = sm.initClient(ipField.getText(), port);
+                if (isConnected){
+                    hostedWindow();
+                }
             }
         });
         
