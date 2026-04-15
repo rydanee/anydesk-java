@@ -18,6 +18,7 @@ import javax.imageio.ImageIO;
 public class Window{
     SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
+    Frame hostedFrame;
 
     Image img = null;
 
@@ -57,23 +58,23 @@ public class Window{
     }
 
     public void updateImg(BufferedImage img) {
-        
+        this.img = img;
+        hostedFrame.repaint();
     }
 
     public void hostedWindow() {
-        Frame frame = new Frame("Photo") {
+        hostedFrame = new Frame("Photo") {
             @Override
             public void paint(Graphics g){
-                //if (img == null) return;
-                //g.drawImage(img, 50, 50, this);
+                if (img == null) {System.out.println("whaa"); return;}
+                g.drawImage(img, 0, 0, this);
             }
         };
 
-        frame.setBackground(Color.BLACK);
-        frame.setSize(3072, 1920);
-        frame.setVisible(true);
+        hostedFrame.setSize(1920, 1200);
+        hostedFrame.setVisible(true);
 
-        frame.addWindowListener(new WindowAdapter() {
+        hostedFrame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) { System.exit(0); }
         });
 
