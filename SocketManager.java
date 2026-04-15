@@ -111,11 +111,6 @@ public class SocketManager {
 
                             out.write(bytes);
                             out.flush();
-                            
-                            try {
-                                Thread.sleep(16);
-                            } catch (InterruptedException e) {
-                            }
                         } catch (IOException e) {
                         }
                     }
@@ -171,10 +166,6 @@ public class SocketManager {
                                 win.updateImg(img);
                             }
 
-                            try {
-                                Thread.sleep(16);
-                            } catch (InterruptedException e) {
-                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
