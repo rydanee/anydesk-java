@@ -52,24 +52,7 @@ public class Window{
     }
 
     public void hostedWindow(BufferedImage img) {
-        Frame fr = new Frame();
-        fr.setBackground(Color.BLACK);
-        fr.setSize(500, 500);
-        fr.setLayout(null);
-        fr.setVisible(true);
-
-        new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                while (isConnected) { 
-                    
-                }
-            }
-
-        }).start();
-
-        System.out.println();
+        
     }
 
     public void hostWindow(Frame frame){
