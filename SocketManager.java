@@ -15,6 +15,9 @@ import javax.imageio.ImageIO;
 
 public class SocketManager {
 
+    Window win;
+    public SocketManager(Window win) {this.win = win;}
+
     Robot robot;
     Rectangle screenRect;
 
@@ -75,12 +78,12 @@ public class SocketManager {
             
             new Thread(new Runnable() {
                 String m = "";
-                
+                BufferedImage img = null;
+
                 @Override
                 public void run() {
                     while (s.isConnected()) {
                         try {
-                            BufferedImage img = null;
                             if (isWayland()) {
                                 img = takeScreenshotGrim();
                             } else img = takeScreenshot();
@@ -133,8 +136,7 @@ public class SocketManager {
                     while (cs.isConnected()) {
                         try {
                             BufferedImage img = ImageIO.read(cs.getInputStream());
-                            ImageIO.write(img, "PNG", new File("received.png"));
-                            System.out.println(img.getHeight());
+                            win.updateImg(img);
                         } catch (IOException e) {
                         }
                     }

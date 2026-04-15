@@ -14,7 +14,7 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
 public class Window{
-    SocketManager sm = new SocketManager();
+    SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
 
     Image img = null;
