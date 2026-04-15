@@ -134,6 +134,7 @@ public class SocketManager {
                 @Override
                 public void run() {
                     while (cs.isConnected()) {
+                        win.setIsConnected(true);
                         try {
                             BufferedImage img = ImageIO.read(cs.getInputStream());
                             win.updateImg(img);
@@ -141,6 +142,7 @@ public class SocketManager {
                         }
                     }
                     try {
+                        win.setIsConnected(false);
                         cs.close();
                         in.close();
                         out.close();
