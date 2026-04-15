@@ -1,4 +1,7 @@
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -16,7 +19,14 @@ import javax.imageio.ImageIO;
 public class SocketManager {
 
     Window win;
-    public SocketManager(Window win) {this.win = win;}
+    public SocketManager(Window win) {
+        this.win = win;
+        screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+            try {
+                robot = new Robot();
+            } catch (AWTException e) {
+        }
+    }
 
     Robot robot;
     Rectangle screenRect;
@@ -63,6 +73,7 @@ public class SocketManager {
         Socket s;
         ServerSocket ss;
         DataInputStream in;
+        DataOutputStream out;
 
         public Server(int port) throws IOException {
             ss = new ServerSocket(port);
@@ -75,6 +86,10 @@ public class SocketManager {
 
             in = new DataInputStream(
                 new BufferedInputStream(s.getInputStream()));
+
+            out = new DataOutputStream(
+                new BufferedOutputStream(s.getOutputStream())
+            );
             
             new Thread(new Runnable() {
                 String m = "";
@@ -87,7 +102,20 @@ public class SocketManager {
                             if (isWayland()) {
                                 img = takeScreenshotGrim();
                             } else img = takeScreenshot();
-                            ImageIO.write(img, "PNG", s.getOutputStream());
+                            
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ImageIO.write(img, "PNG", baos);
+                            byte[] bytes = baos.toByteArray();
+
+                            out.writeInt(bytes.length); 
+
+                            out.write(bytes);
+                            out.flush();
+                            
+                            try {
+                                Thread.sleep(16);
+                            } catch (InterruptedException e) {
+                            }
                         } catch (IOException e) {
                         }
                     }
@@ -113,15 +141,10 @@ public class SocketManager {
         DataOutputStream out;
 
         public Client(String ip, int port) {    
-            screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-            try {
-                robot = new Robot();
-            } catch (AWTException e) {
-            }
 
             try {
                 cs = new Socket(ip, port);
-                in = new DataInputStream(System.in);
+                in = new DataInputStream(new BufferedInputStream(cs.getInputStream()));
                 out = new DataOutputStream(cs.getOutputStream());
 
 
@@ -136,9 +159,24 @@ public class SocketManager {
                     while (cs.isConnected()) {
                         win.setIsConnected(true);
                         try {
-                            BufferedImage img = ImageIO.read(cs.getInputStream());
-                            win.updateImg(img);
+                            int length = in.readInt(); 
+                            
+                            if (length > 0) {
+                                byte[] data = new byte[length];
+                                in.readFully(data);
+
+
+
+                                BufferedImage img = ImageIO.read(new ByteArrayInputStream(data));
+                                win.updateImg(img);
+                            }
+
+                            try {
+                                Thread.sleep(16);
+                            } catch (InterruptedException e) {
+                            }
                         } catch (IOException e) {
+                            e.printStackTrace();
                         }
                     }
                     try {
