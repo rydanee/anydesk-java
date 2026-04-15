@@ -91,7 +91,7 @@ public class Window{
             });
         }
 
-        hostedFrame.setSize(1920, 1200);
+        hostedFrame.setSize(1280, 720);
         hostedFrame.setVisible(true);
 
         hostedFrame.addWindowListener(new WindowAdapter() {

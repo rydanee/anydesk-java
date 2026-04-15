@@ -1,62 +1,42 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.awt.AWTException;
-import java.awt.Graphics;
-import java.awt.Image;
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
+import javax.imageio.*;
 import javax.imageio.stream.ImageOutputStream;
 
 public class SocketManager {
-
     Window win;
+    Robot robot;
+    Rectangle screenRect;
+    private static final int MAX_PACKET_SIZE = 60000;
+
     public SocketManager(Window win) {
         this.win = win;
         screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-            try {
-                robot = new Robot();
-            } catch (AWTException e) {
-        }
-    }
-
-    Robot robot;
-    Rectangle screenRect;
-
-    public Server initServer(int port) {
-            Server serv = null;
-            try {
-                serv = new Server(port);
-            } catch (IOException e) {
-            }
-            return serv;
-        }
-
-    public Client initClient(String ip, int port) {
-        Client cl = new Client(ip, port);
-        return cl;
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {}
     }
 
     public static boolean isWayland() {
-        String sessionType = System.getenv("XDG_SESSION_TYPE");
-        return "wayland".equalsIgnoreCase(sessionType);
+        return "wayland".equalsIgnoreCase(System.getenv("XDG_SESSION_TYPE"));
+    }
+
+    BufferedImage takeScreenshot() {
+        BufferedImage fullImg = robot.createScreenCapture(screenRect);
+        BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_BGR);
+        
+        Graphics2D g2d = scaledImg.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        g2d.drawImage(fullImg, 0, 0, 1280, 720, null);
+        g2d.dispose();
+        
+        return scaledImg;
     }
 
     BufferedImage takeScreenshotGrim() {
@@ -64,174 +44,136 @@ public class SocketManager {
             Process process = new ProcessBuilder("grim", "-").start();
             byte[] imageBytes = process.getInputStream().readAllBytes();
             process.waitFor();
+            
             if (imageBytes.length == 0) return null;
 
-            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            if (img == null) return null;
+            BufferedImage fullImg = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (fullImg == null) return null;
 
-            BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_RGB);
-
-            Graphics g = scaledImg.getGraphics();
-            g.drawImage(img, 0, 0, 1280, 720, null);
-            g.dispose(); 
+            BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_BGR);
+            
+            Graphics2D g2d = scaledImg.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            g2d.drawImage(fullImg, 0, 0, 1280, 720, null);
+            g2d.dispose();
 
             return scaledImg;
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
-
 
     private void writeJpgOptimized(BufferedImage img, OutputStream out) throws IOException {
         Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
         ImageWriter writer = writers.next();
         ImageWriteParam param = writer.getDefaultWriteParam();
-        
         param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-        param.setCompressionQuality(0.6f);
-        
+        param.setCompressionQuality(0.3f);
         try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
             writer.setOutput(ios);
             writer.write(null, new IIOImage(img, null, null), param);
             ios.flush();
         }
         writer.dispose();
-        
     }
-
-
-    BufferedImage takeScreenshot() {
-        BufferedImage fullImg = robot.createScreenCapture(screenRect);
-
-        BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_RGB);
-
-        Graphics g = scaledImg.getGraphics();
-        g.drawImage(fullImg, 0, 0, 1280, 720, null);
-        g.dispose(); 
-
-        return scaledImg;
-    }
-
 
     public class Server {
-        public int port = 9021;
-        Socket s;
-        ServerSocket ss;
-        DataInputStream in;
-        DataOutputStream out;
+        DatagramSocket socket;
+        InetAddress clientAddr;
+        int clientPort;
 
         public Server(int port) throws IOException {
-            ss = new ServerSocket(port);
-            
-            System.out.println("server started");
+            socket = new DatagramSocket(port);
+            System.out.println("UDP Server started on port " + port);
 
-            s = ss.accept();
+            byte[] buf = new byte[1024];
+            DatagramPacket p = new DatagramPacket(buf, buf.length);
+            socket.receive(p);
+            clientAddr = p.getAddress();
+            clientPort = p.getPort();
+            System.out.println("Client linked: " + clientAddr);
 
-            System.out.println("client connected");
-
-            in = new DataInputStream(
-                new BufferedInputStream(s.getInputStream()));
-
-            out = new DataOutputStream(
-                new BufferedOutputStream(s.getOutputStream())
-            );
-            
-            new Thread(new Runnable() {
-                String m = "";
-                BufferedImage img = null;
-
-                @Override
-                public void run() {
-                    while (s.isConnected()) {
-                        try {
-                            if (isWayland()) {
-                                img = takeScreenshotGrim();
-                            } else img = takeScreenshot();
-                            
-                            if (img == null) continue;
-
-                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            writeJpgOptimized(img, baos);
-
-                            byte[] bytes = baos.toByteArray();
-
-                            out.writeInt(bytes.length); 
-
-                            out.write(bytes);
-                            out.flush();
-
-                            Thread.sleep(30);
-                        } catch (Exception e) {
-                        }
-                    }
+            new Thread(() -> {
+                while (!socket.isClosed()) {
                     try {
-                        s.close();
-                        in.close();
-                    } catch (IOException e) {
-                    }
+                        BufferedImage img = isWayland() ? takeScreenshotGrim() : takeScreenshot();
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        writeJpgOptimized(img, baos);
+                        byte[] data = baos.toByteArray();
+
+                        byte[] header = ByteBuffer.allocate(4).putInt(data.length).array();
+                        socket.send(new DatagramPacket(header, header.length, clientAddr, clientPort));
+
+                        int offset = 0;
+                        while (offset < data.length) {
+                            int len = Math.min(MAX_PACKET_SIZE, data.length - offset);
+                            socket.send(new DatagramPacket(data, offset, len, clientAddr, clientPort));
+                            offset += len;
+                        }
+                        Thread.sleep(2);
+                    } catch (Exception e) { e.printStackTrace(); }
                 }
             }).start();
-
-
         }
-
     }
 
     public class Client {
-        public String ip = "127.0.0.1";
-        public int port = 9021;
-        Socket cs;
-        public boolean stop = false;
-        DataInputStream in;
-        DataOutputStream out;
+        DatagramSocket socket;
 
-        public Client(String ip, int port) {    
-
+        public Client(String ip, int port) {
             try {
-                cs = new Socket(ip, port);
-                in = new DataInputStream(new BufferedInputStream(cs.getInputStream()));
-                out = new DataOutputStream(cs.getOutputStream());
+                socket = new DatagramSocket();
+                InetAddress addr = InetAddress.getByName(ip);
+                
+                byte[] hello = "hi".getBytes();
+                socket.send(new DatagramPacket(hello, hello.length, addr, port));
 
-
-            } catch (IOException e) {
-            }
-
-            new Thread(new Runnable() {
-                String m = "";
-
-                @Override
-                public void run() {
-                    while (cs.isConnected()) {
-                        win.setIsConnected(true);
+                new Thread(() -> {
+                    while (!socket.isClosed()) {
                         try {
-                            int length = in.readInt(); 
-                            
-                            if (length > 0) {
-                                byte[] data = new byte[length];
-                                in.readFully(data);
+                            byte[] header = new byte[4];
+                            DatagramPacket hp = new DatagramPacket(header, header.length);
+                            socket.receive(hp);
+                            int totalSize = ByteBuffer.wrap(header).getInt();
 
-                                BufferedImage img = ImageIO.read(new ByteArrayInputStream(data));
-                                if(img != null) {
-                                    img.getGraphics().dispose(); 
-                                    win.updateImg(img);
-                                    win.setIsConnected(true);
+                            byte[] fullImgData = new byte[totalSize];
+                            int received = 0;
+                            while (received < totalSize) {
+                                byte[] chunkBuf = new byte[MAX_PACKET_SIZE + 200];
+                                DatagramPacket cp = new DatagramPacket(chunkBuf, chunkBuf.length);
+                                socket.receive(cp);
+                                
+                                int len = cp.getLength();
+                                if (received + len <= totalSize) {
+                                    System.arraycopy(cp.getData(), 0, fullImgData, received, len);
+                                    received += len;
+                                } else {
+                                    break;
                                 }
                             }
-                            //Thread.sleep(30);
+
+                            BufferedImage img = ImageIO.read(new ByteArrayInputStream(fullImgData));
+                            if (img != null) {
+                                win.setIsConnected(true);
+                                win.updateImg(img);
+                            }
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            win.setIsConnected(false);
                         }
                     }
-                    try {
-                        win.setIsConnected(false);
-                        cs.close();
-                        in.close();
-                        out.close();
-                    } catch (IOException e) {
-                    }
-                }
-            }).start();
+                }).start();
+            } catch (Exception e) { e.printStackTrace(); }
         }
+    }
 
+    public Server initServer(int port) {
+        try { return new Server(port); } catch (IOException e) { return null; }
+    }
+
+    public Client initClient(String ip, int port) {
+        return new Client(ip, port);
     }
 }
