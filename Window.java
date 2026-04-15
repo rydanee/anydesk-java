@@ -16,6 +16,8 @@ public class Window{
     SocketManager sm = new SocketManager();
     public boolean isConnected = false;
 
+    Image img = null;
+
     public void menuWindow(Frame frame){
         frame.removeAll();
         Button hostButton = new Button("Host");
@@ -49,6 +51,10 @@ public class Window{
 
         frame.revalidate();
         frame.repaint();
+    }
+
+    public void updateImg(BufferedImage img) {
+
     }
 
     public void hostedWindow(BufferedImage img) {
