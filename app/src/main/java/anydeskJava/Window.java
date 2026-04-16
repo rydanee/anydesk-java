@@ -105,7 +105,7 @@ public class Window{
     public void hostWindow(Frame frame){
         frame.removeAll();
 
-        TextField hostField = new TextField("9021");
+        TextField hostField = new TextField("6478");
         Button createButton = new Button("Create");
         Button backButton = new Button("Back");        
 
@@ -144,7 +144,7 @@ public class Window{
     public void clientWindow(Frame frame){
         frame.removeAll();
 
-        TextField portField = new TextField("9021");
+        TextField portField = new TextField("6478");
         TextField ipField = new TextField("127.0.0.1");
 
         Button createButton = new Button("Connect");
@@ -172,23 +172,13 @@ public class Window{
         backButton.setBounds(150, 200, 100, 30);
 
         createButton.addActionListener(new ActionListener() {
-    public void actionPerformed(ActionEvent e){
-        int port = Integer.parseInt(portField.getText());
-        sm.initServer(ipField.getText(), port);
-        
-        new Thread(() -> {
-            try {
-                for(int i=0; i<50; i++) {
-                    if (isConnected) {
-                        hostedWindow();
-                        break;
-                    }
-                    Thread.sleep(100);
-                }
-            } catch (Exception ex) {}
-        }).start();
-    }
-});
+            public void actionPerformed(ActionEvent e){
+                int port = Integer.parseInt(portField.getText());
+                sm.initServer(ipField.getText(), port);
+                
+                hostedWindow(); 
+            }
+        });
 
         
         backButton.addActionListener(new ActionListener() {
