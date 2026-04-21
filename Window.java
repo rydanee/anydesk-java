@@ -78,10 +78,11 @@ public class Window{
         if (hostedFrame.isFocusableWindow()){
             hostedFrame.addKeyListener(new KeyListener() {
                 public void keyPressed(KeyEvent e) {
-                    if (cli != null) cli.setLastPressed(e.getKeyChar());
+                    if (cli != null) cli.pressSignal(e.getKeyCode(), true);
                 }
 
                 public void keyReleased(KeyEvent e) {
+                    if (cli != null) cli.pressSignal(e.getKeyCode(), false);
                 }
 
                 public void keyTyped(KeyEvent e) {

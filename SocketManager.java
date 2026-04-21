@@ -150,11 +150,18 @@ public class SocketManager {
 
                             byte[] bytes = baos.toByteArray();
 
-                            if (in.available() >= 2) {
-                                char pressed = in.readChar();
-                                System.out.println("received: " + pressed);
-                                robot.keyPress(pressed);
-                                robot.keyRelease(pressed);
+                            if (in.available() >= 12) {
+                                int type = in.readInt();
+                                if (type == -1) {
+                                    int keycode = in.readInt();
+                                    boolean pressed = in.readBoolean();
+
+                                    if (pressed) {
+                                        robot.keyPress(keycode);
+                                    } else {
+                                        robot.keyRelease(keycode);
+                                    }
+                                }
                             }
 
                             out.writeInt(bytes.length); 
@@ -184,13 +191,13 @@ public class SocketManager {
         DataInputStream in;
         DataOutputStream out;
 
-        char lastPressed;
-        boolean hasNewPress = false;
-
-        public void setLastPressed(char lastPressed) {
-            this.lastPressed = lastPressed;
-            hasNewPress = true;
-            System.out.println("changed last key");
+        public void pressSignal(int keycode, boolean pressed) {
+            try {
+                out.writeInt(-1);
+                out.writeInt(keycode);
+                out.writeBoolean(pressed);
+                out.flush();
+            } catch (IOException e) {}
         }
 
         public Client(String ip, int port) {    
@@ -210,12 +217,6 @@ public class SocketManager {
                     while (cs.isConnected()) {
                         win.setIsConnected(true);
                         try {
-                            if (hasNewPress) {
-                                char pressed = lastPressed;
-                                out.writeChar(pressed);
-                                hasNewPress = false;
-                            }
-
                             int length = in.readInt(); 
                             byte[] data = new byte[length];
                             in.readFully(data);
@@ -228,17 +229,14 @@ public class SocketManager {
                             }
 
 
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        } catch (Exception e) {}
                     }
                     try {
                         win.setIsConnected(false);
                         cs.close();
                         in.close();
                         out.close();
-                    } catch (IOException e) {
-                    }
+                    } catch (IOException e) {}
                 }
             }).start();
         }
