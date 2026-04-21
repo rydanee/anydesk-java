@@ -5,10 +5,8 @@ import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Label;
-import java.awt.MediaTracker;
 import java.awt.Robot;
 import java.awt.TextField;
-import java.awt.Toolkit;
 import java.awt.event.KeyListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
@@ -16,15 +14,15 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-import java.awt.Robot;
 
 public class Window{
     SocketManager sm = new SocketManager(this);
     public boolean isConnected = false;
     JFrame hostedFrame;
     public Robot robot;
+    public volatile SocketManager.Server serv;
+    public SocketManager.Client cli;
 
     Image img = null;
 
@@ -80,7 +78,7 @@ public class Window{
         if (hostedFrame.isFocusableWindow()){
             hostedFrame.addKeyListener(new KeyListener() {
                 public void keyPressed(KeyEvent e) {
-                    System.out.println("Нажата клавиша: " + KeyEvent.getKeyText(e.getKeyCode()));
+                    if (cli != null) cli.setLastPressed(e.getKeyChar());
                 }
 
                 public void keyReleased(KeyEvent e) {
@@ -103,7 +101,7 @@ public class Window{
     public void hostWindow(Frame frame){
         frame.removeAll();
 
-        TextField hostField = new TextField("9021");
+        TextField hostField = new TextField("6748");
         Button createButton = new Button("Create");
         Button backButton = new Button("Back");        
 
@@ -120,8 +118,7 @@ public class Window{
         createButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
                 int port = Integer.parseInt(hostField.getText());
-                SocketManager.Server serv = sm.initServer(port);
-
+                startServer(port);
             }
         });
 
@@ -139,10 +136,14 @@ public class Window{
 
     }
 
+    public void startServer(int port) {
+        this.serv = sm.initServer(port);
+    }
+
     public void clientWindow(Frame frame){
         frame.removeAll();
 
-        TextField portField = new TextField("9021");
+        TextField portField = new TextField("6748");
         TextField ipField = new TextField("127.0.0.1");
 
         Button createButton = new Button("Connect");
@@ -172,7 +173,7 @@ public class Window{
         createButton.addActionListener(new ActionListener() {
     public void actionPerformed(ActionEvent e){
         int port = Integer.parseInt(portField.getText());
-        sm.initClient(ipField.getText(), port);
+        cli = sm.initClient(ipField.getText(), port);
         
         new Thread(() -> {
             try {
@@ -180,10 +181,14 @@ public class Window{
                     if (isConnected) {
                         hostedWindow();
                         break;
+                    } else {
+                        System.out.println("some bullshit going on with the connection");
                     }
                     Thread.sleep(100);
                 }
-            } catch (Exception ex) {}
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }).start();
     }
 });
