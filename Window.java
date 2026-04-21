@@ -8,6 +8,8 @@ import java.awt.Label;
 import java.awt.Robot;
 import java.awt.TextField;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -86,6 +88,22 @@ public class Window{
                 }
 
                 public void keyTyped(KeyEvent e) {
+                }
+            });
+            hostedFrame.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    // TODO click handling
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    // TODO long press
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    // TODO long press
                 }
             });
         }
