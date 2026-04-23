@@ -83,8 +83,8 @@ public class SocketManager {
         ImageWriter writer = writers.next();
         ImageWriteParam param = writer.getDefaultWriteParam();
         
-        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-        param.setCompressionQuality(0.6f);
+        //param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        //param.setCompressionQuality(0.6f);
         
         try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
             writer.setOutput(ios);
@@ -99,10 +99,10 @@ public class SocketManager {
     BufferedImage takeScreenshot() {
         BufferedImage fullImg = robot.createScreenCapture(screenRect);
 
-        BufferedImage scaledImg = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_RGB);
+        BufferedImage scaledImg = new BufferedImage(1920, 1200, BufferedImage.TYPE_3BYTE_BGR);
 
         Graphics g = scaledImg.getGraphics();
-        g.drawImage(fullImg, 0, 0, 1280, 720, null);
+        g.drawImage(fullImg, 0, 0, 1920, 1200, null);
         g.dispose(); 
 
         return scaledImg;
@@ -161,7 +161,22 @@ public class SocketManager {
                                     } else {
                                         robot.keyRelease(keycode);
                                     }
-                                }
+                                } else if (type == -2) {
+                                    int x = in.readInt();
+                                    int y = in.readInt();
+                                    int button = in.readInt();
+                                    boolean pressed = in.readBoolean();
+
+                                    System.out.printf("x: %d, y: %d, button: %d, pressed: %b\n", x, y, button, pressed);
+
+                                    if (pressed) {
+                                        robot.mouseMove(x, y);
+                                        Thread.sleep(10);
+                                        robot.mousePress(button);
+                                    } else {
+                                        robot.mouseRelease(button);
+                                    }
+                                } 
                             }
 
                             out.writeInt(bytes.length); 
@@ -198,6 +213,20 @@ public class SocketManager {
                 out.writeBoolean(pressed);
                 out.flush();
             } catch (IOException e) {}
+        }
+
+        public void mouseClick(int x, int y, int button, boolean pressed) {
+            try {   
+                out.writeInt(-2);
+                out.writeInt(x);
+                out.writeInt(y);
+                out.writeInt(button);
+                out.writeBoolean(pressed);
+                out.flush();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         public Client(String ip, int port) {    

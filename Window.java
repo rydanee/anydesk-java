@@ -1,12 +1,16 @@
 import java.awt.AWTException;
 import java.awt.Button;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.Label;
+import java.awt.Point;
 import java.awt.Robot;
 import java.awt.TextField;
+import java.awt.Toolkit;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -17,6 +21,8 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 public class Window{
     SocketManager sm = new SocketManager(this);
@@ -25,6 +31,9 @@ public class Window{
     public Robot robot;
     public volatile SocketManager.Server serv;
     public SocketManager.Client cli;
+    int imgWidth;
+    int imgHeight;
+    Dimension screenSize;
 
     Image img = null;
 
@@ -67,18 +76,21 @@ public class Window{
         this.img = img;
         if( hostedFrame != null) hostedFrame.repaint();
     }
-
     public void hostedWindow() {
-        hostedFrame = new JFrame("Photo") {
+        hostedFrame = new JFrame("Photo");
+
+        JPanel panel = new JPanel() {
             @Override
-            public void paint(Graphics g){
+            public void paint(Graphics g) {
                 if (img == null) {System.out.println("whaa"); return;}
                 g.drawImage(img, 0, 0, this);
             }
         };
 
+        hostedFrame.add(panel);
+
         if (hostedFrame.isFocusableWindow()){
-            hostedFrame.addKeyListener(new KeyListener() {
+            panel.addKeyListener(new KeyListener() {
                 public void keyPressed(KeyEvent e) {
                     if (cli != null) cli.pressSignal(e.getKeyCode(), true);
                 }
@@ -93,22 +105,35 @@ public class Window{
             hostedFrame.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    // TODO click handling
+                    //bullshit
                 }
 
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    // TODO long press
+                    int newX = (int) (e.getX() * ((double) imgWidth / screenSize.getWidth()));
+                    int newY = (int) (e.getY() * ((double) imgHeight / screenSize.getHeight()));
+
+                    int button = e.getButton();
+
+                    cli.mouseClick(newX, newY, button, true);
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
-                    // TODO long press
+                    int newX = (int) (e.getX() * (imgWidth / screenSize.getWidth()));
+                    int newY = (int) (e.getY() * (imgHeight / screenSize.getHeight()));
+
+                    int button = e.getButton();
+
+                    cli.mouseClick(newX, newY, button, false);
                 }
             });
         }
 
-        hostedFrame.setSize(1280, 720);
+        imgWidth = 1280; //img.getWidth(hostedFrame);
+        imgHeight = 720; //img.getHeight(hostedFrame);
+
+        hostedFrame.setSize(imgWidth, imgHeight);
         hostedFrame.setVisible(true);
 
         hostedFrame.addWindowListener(new WindowAdapter() {
@@ -231,6 +256,8 @@ public class Window{
     }
     
     public void initWindow(){
+        screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+
         Frame frame = new Frame("Main window");
         try {
             robot = new Robot();
