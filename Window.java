@@ -1,284 +1,328 @@
 import java.awt.AWTException;
-import java.awt.Button;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Frame;
-import java.awt.Graphics;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Image;
-import java.awt.Insets;
-import java.awt.Label;
 import java.awt.Point;
 import java.awt.Robot;
-import java.awt.TextField;
-import java.awt.Toolkit;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
-public class Window{
+public class Window {
     SocketManager sm = new SocketManager(this);
-    public boolean isConnected = false;
-    JFrame hostedFrame;
+    JFrame frame = new JFrame("Main window");
+
+    JPanel upper = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+
+    JTextField ip = new JTextField("127.0.0.1", 15);
+    JTextField port = new JTextField("6748", 5);
+    JButton connect = new JButton("Connect");
+    JButton disconnect = new JButton("Disconnect");
+    JButton start = new JButton("Start Server");
+    JTextArea log = new JTextArea(5, 30);
+    JLabel screenLabel = new JLabel("Remote screen will appear here");
+    JPanel screenPanel = new JPanel(new BorderLayout());
+    JScrollPane screenScrollPane;
+
+    private int remoteScreenWidth = 1920;
+    private int remoteScreenHeight = 1080;
+    private BufferedImage originalImage = null;
+
     public Robot robot;
-    public volatile SocketManager.Server serv;
     public SocketManager.Client cli;
-    int imgWidth;
-    int imgHeight;
-    Dimension screenSize;
+    public SocketManager.Server serv;
+
+    public boolean isConnected = false;
 
     Image img = null;
 
-    public void menuWindow(Frame frame){
-        frame.removeAll();
-        Button hostButton = new Button("Host");
-        Button clientButton = new Button("Client");
-        Button backButton = new Button("Back");
+    public void setRemoteScreenSize(int width, int height) {
+        this.remoteScreenWidth = width;
+        this.remoteScreenHeight = height;
+    }
 
-        hostButton.setBackground(Color.WHITE);
-        hostButton.setForeground(Color.BLACK);
-        hostButton.setBounds(150, 150, 100, 30);
-        
-        clientButton.setBackground(Color.WHITE);
-        clientButton.setForeground(Color.BLACK);
-        clientButton.setBounds(150, 100, 100, 30);
+    private void setupEventHandlers() {
+        connect.addActionListener(e -> {
+            int pr = 9021;
+            try {
+                pr = Integer.parseInt(port.getText());
+            } catch (Exception ex) {
+                appendLog("Wrong port type, cannot start.");
+                return;
+            }
 
-        hostButton.addActionListener(new ActionListener() {
+            sm.initClient(ip.getText(), pr);
+            cli = sm.cli;
+
+            connect.setEnabled(false);
+            start.setEnabled(false);
+            disconnect.setEnabled(true);
+
+            ip.setEditable(false);
+            port.setEditable(false);
+
+            screenPanel.requestFocusInWindow();
+        });
+
+        start.addActionListener(e -> {
+            int pr = 9021;
+            try {
+                pr = Integer.parseInt(port.getText());
+            } catch (Exception ex) {
+                appendLog("Wrong port type, cannot start.");
+                return;
+            }
+
+            sm.initServer(pr);
+            serv = sm.serv;
+
+            connect.setEnabled(false);
+            start.setEnabled(false);
+            disconnect.setEnabled(true);
+
+            ip.setEditable(false);
+            port.setEditable(false);
+        });
+
+        disconnect.addActionListener(e -> {
+            sm.closeSockets();
+
+            connect.setEnabled(true);
+            start.setEnabled(true);
+            disconnect.setEnabled(false);
+
+            ip.setEditable(true);
+            port.setEditable(true);
+
+            sm.cli = null;
+            sm.serv = null;
+        });
+
+        setupKeyListener();
+    }
+
+    private void setupKeyListener() {
+        screenPanel.addKeyListener(new KeyListener() {
             @Override
-            public void actionPerformed(ActionEvent e){
-                hostWindow(frame);
+            public void keyPressed(KeyEvent e) {
+                if (sm.cli != null) {
+                    e.consume();
+                    sm.cli.pressSignal(e.getKeyCode(), true);
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if (sm.cli != null) {
+                    e.consume();
+                    sm.cli.pressSignal(e.getKeyCode(), false);
+                }
+            }
+
+            @Override
+            public void keyTyped(KeyEvent e) {
+                e.consume();
             }
         });
 
-        clientButton.addActionListener(new ActionListener() {
+        screenPanel.addMouseListener(new MouseListener() {
             @Override
-            public void actionPerformed(ActionEvent e){
-                clientWindow(frame);
+            public void mouseClicked(MouseEvent arg0) {
+                screenPanel.requestFocus();
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent arg0) {
+                // TODO Auto-generated catch block
+            }
+
+            @Override
+            public void mouseExited(MouseEvent arg0) {
+            }
+
+            @Override
+            public void mousePressed(MouseEvent arg0) {
+                screenPanel.requestFocus();
+                if (sm.cli != null) {
+                    Point scaled = getScaledCoordinates(arg0.getPoint());
+                    if (scaled != null) {
+                        sm.cli.mouseClick(scaled.x, scaled.y, arg0.getButton(), true);
+                    }
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent arg0) {
+                if (sm.cli != null) {
+                    Point scaled = getScaledCoordinates(arg0.getPoint());
+                    if (scaled != null) {
+                        sm.cli.mouseClick(scaled.x, scaled.y, arg0.getButton(), false);
+                    }
+                }
             }
         });
 
-        frame.add(clientButton);
-        frame.add(hostButton);
+        screenPanel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (sm.cli != null) {
+                    Point scaled = getScaledCoordinates(e.getPoint());
+                    if (scaled != null) {
+                        sm.cli.mouseMove(scaled.x, scaled.y);
+                    }
+                }
+            }
 
-        frame.revalidate();
-        frame.repaint();
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (sm.cli != null) {
+                    Point scaled = getScaledCoordinates(e.getPoint());
+                    if (scaled != null) {
+                        sm.cli.mouseMove(scaled.x, scaled.y);
+                    }
+                }
+            }
+        });
+    }
+
+    private Point getScaledCoordinates(Point panelPoint) {
+        if (screenLabel.getIcon() == null) {
+            return panelPoint;
+        }
+
+        ImageIcon icon = (ImageIcon) screenLabel.getIcon();
+        int displayedWidth = icon.getIconWidth();
+        int displayedHeight = icon.getIconHeight();
+
+        Point labelLocation = screenLabel.getLocation();
+        int labelWidth = screenLabel.getWidth();
+        int labelHeight = screenLabel.getHeight();
+
+        int offsetX = labelLocation.x + (labelWidth - displayedWidth) / 2;
+        int offsetY = labelLocation.y + (labelHeight - displayedHeight) / 2;
+
+        int relativeX = panelPoint.x - offsetX;
+        int relativeY = panelPoint.y - offsetY;
+
+        if (relativeX < 0 || relativeY < 0 || relativeX > displayedWidth || relativeY > displayedHeight) {
+            return null;
+        }
+
+        double scaleX = (double) remoteScreenWidth / displayedWidth;
+        double scaleY = (double) remoteScreenHeight / displayedHeight;
+
+        int scaledX = (int) (relativeX * scaleX);
+        int scaledY = (int) (relativeY * scaleY);
+
+        return new Point(scaledX, scaledY);
+    }
+
+    private void setLayout() {
+        frame.setLayout(new BorderLayout());
+
+        log.setEditable(false);
+        disconnect.setEnabled(false);
+
+        setupEventHandlers();
+
+        upper.add(ip);
+        upper.add(port);
+        upper.add(connect);
+        upper.add(start);
+        upper.add(disconnect);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, screenScrollPane, new JScrollPane(log));
+        splitPane.setResizeWeight(0.85);
+        splitPane.setBorder(null);
+
+        frame.add(upper, BorderLayout.NORTH);
+        frame.add(splitPane, BorderLayout.CENTER);
     }
 
     public void updateImg(BufferedImage img) {
-        this.img = img;
-        if( hostedFrame != null) hostedFrame.repaint();
-    }
-    public void hostedWindow() {
-        hostedFrame = new JFrame("Photo");
+        SwingUtilities.invokeLater(() -> {
+            if (img != null) {
+                originalImage = img;
 
-        JPanel panel = new JPanel() {
-            @Override
-            public void paint(Graphics g) {
-                if (img == null) {System.out.println("whaa"); return;}
-                g.drawImage(img, 0, 0, this);
-            }
-        };
+                int panelWidth = screenPanel.getWidth();
+                int panelHeight = screenPanel.getHeight();
 
-        hostedFrame.add(panel);
+                if (panelWidth <= 0)
+                    panelWidth = screenScrollPane.getWidth();
+                if (panelHeight <= 0)
+                    panelHeight = screenScrollPane.getHeight();
+                if (panelWidth <= 0)
+                    panelWidth = 800;
+                if (panelHeight <= 0)
+                    panelHeight = 600;
 
-        if (hostedFrame.isFocusableWindow()){
-            panel.addKeyListener(new KeyListener() {
-                public void keyPressed(KeyEvent e) {
-                    if (cli != null) cli.pressSignal(e.getKeyCode(), true);
-                }
-
-                public void keyReleased(KeyEvent e) {
-                    if (cli != null) cli.pressSignal(e.getKeyCode(), false);
-                }
-
-                public void keyTyped(KeyEvent e) {
-                }
-            });
-            hostedFrame.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    //bullshit
-                }
-
-                @Override
-                public void mousePressed(MouseEvent e) {
-                    int newX = (int) (e.getX() * ((double) imgWidth / screenSize.getWidth()));
-                    int newY = (int) (e.getY() * ((double) imgHeight / screenSize.getHeight()));
-
-                    int button = e.getButton();
-
-                    cli.mouseClick(newX, newY, button, true);
-                }
-
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    int newX = (int) (e.getX() * (imgWidth / screenSize.getWidth()));
-                    int newY = (int) (e.getY() * (imgHeight / screenSize.getHeight()));
-
-                    int button = e.getButton();
-
-                    cli.mouseClick(newX, newY, button, false);
-                }
-            });
-        }
-
-        imgWidth = 1280; //img.getWidth(hostedFrame);
-        imgHeight = 720; //img.getHeight(hostedFrame);
-
-        hostedFrame.setSize(imgWidth, imgHeight);
-        hostedFrame.setVisible(true);
-
-        hostedFrame.addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) { System.exit(0); }
-        });
-
-    }
-
-    public void hostWindow(Frame frame){
-        frame.removeAll();
-
-        TextField hostField = new TextField("6748");
-        Button createButton = new Button("Create");
-        Button backButton = new Button("Back");        
-
-        hostField.setBounds(100, 100, 100, 30);
-        createButton.setBounds(220, 100, 50, 30);
-
-        createButton.setBackground(Color.WHITE);
-        createButton.setForeground(Color.BLACK);
-
-        backButton.setBackground(Color.WHITE);
-        backButton.setForeground(Color.BLACK);
-        backButton.setBounds(150, 150, 100, 30);
-
-        createButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e){
-                int port = Integer.parseInt(hostField.getText());
-                startServer(port);
+                Image scaled = img.getScaledInstance(panelWidth, panelHeight, Image.SCALE_SMOOTH);
+                screenLabel.setIcon(new ImageIcon(scaled));
+                screenLabel.setText(null);
             }
         });
-
-        backButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e){
-                menuWindow(frame);
-            }
-        });
-
-        frame.add(backButton);
-        frame.add(hostField);
-        frame.add(createButton);
-        frame.revalidate();
-        frame.repaint();
-
     }
 
-    public void startServer(int port) {
-        this.serv = sm.initServer(port);
-    }
+    public void initWindow() {
+        screenLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        screenLabel.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        screenPanel.setLayout(new BorderLayout());
+        screenPanel.add(screenLabel, BorderLayout.CENTER);
+        screenPanel.setBorder(BorderFactory.createLineBorder(new Color(60, 63, 65)));
+        screenPanel.setPreferredSize(new Dimension(800, 600));
+        screenPanel.setMinimumSize(new Dimension(100, 100));
 
-    public void clientWindow(Frame frame){
-        frame.removeAll();
+        screenScrollPane = new JScrollPane(screenPanel);
+        screenScrollPane.setPreferredSize(new Dimension(800, 600));
 
-        TextField portField = new TextField("6748");
-        TextField ipField = new TextField("127.0.0.1");
+        setLayout();
 
-        Button createButton = new Button("Connect");
-        Button backButton = new Button("Back");    
-
-        Label ipLabel = new Label("IP:");
-        Label portLabel = new Label("Port:");
-
-        ipLabel.setLocation(50, 150);
-        ipLabel.setBackground(Color.WHITE);
-
-        portLabel.setLocation(50, 100);
-        portLabel.setForeground(Color.WHITE);
-
-        portField.setBounds(100, 100, 100, 30);
-        ipField.setBounds(100, 150, 100, 30);
-
-        createButton.setBounds(220, 125, 50, 30);
-
-        createButton.setBackground(Color.WHITE);
-        createButton.setForeground(Color.BLACK);
-
-        backButton.setBackground(Color.WHITE);
-        backButton.setForeground(Color.BLACK);
-        backButton.setBounds(150, 200, 100, 30);
-
-        createButton.addActionListener(new ActionListener() {
-    public void actionPerformed(ActionEvent e){
-        int port = Integer.parseInt(portField.getText());
-        cli = sm.initClient(ipField.getText(), port);
-        
-        new Thread(() -> {
-            try {
-                for(int i=0; i<50; i++) {
-                    if (isConnected) {
-                        hostedWindow();
-                        break;
-                    } else {
-                        System.out.println("some bullshit going on with the connection");
-                    }
-                    Thread.sleep(100);
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }).start();
-    }
-});
-
-        
-        backButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e){
-                menuWindow(frame);
-            }
-        });
-
-        frame.add(backButton);
-        frame.add(portField);
-        frame.add(ipLabel);
-        frame.add(portLabel);
-        frame.add(ipField);
-        frame.add(createButton);
-
-        frame.revalidate();
-        frame.repaint();
-    }
-    
-    public void initWindow(){
-        screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-
-        Frame frame = new Frame("Main window");
         try {
             robot = new Robot();
-        } catch (AWTException e) {}
+        } catch (AWTException e) {
+        }
 
-        frame.setBackground(Color.BLACK);
-        frame.setSize(500, 500);
-        frame.setLayout(null);
+        frame.setBackground(Color.WHITE);
+        frame.setSize(700, 700);
         frame.setVisible(true);
 
         frame.addWindowListener(new WindowAdapter() {
             @Override
-            public void windowClosing(WindowEvent e){
+            public void windowClosing(WindowEvent e) {
                 System.exit(0);
             }
         });
-
-        menuWindow(frame);
     }
 
     public void setIsConnected(boolean isConnected) {
         this.isConnected = isConnected;
+    }
+
+    public void appendLog(String message) {
+        SwingUtilities.invokeLater(() -> {
+            log.append(message + "\n");
+            log.setCaretPosition(log.getDocument().getLength());
+        });
     }
 }
